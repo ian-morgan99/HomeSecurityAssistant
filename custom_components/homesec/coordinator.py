@@ -57,6 +57,7 @@ from .const import (
     CONF_SCAN_PORT_THRESHOLD,
     CONF_SCAN_PORTS,
     CONF_SCAN_WINDOW_SECONDS,
+    CONF_SURICATA_ALLOW_UNAUTHENTICATED,
     CONF_SURICATA_ALLOWED_SOURCES,
     CONF_SURICATA_AUTH_TOKEN,
     CONF_SURICATA_LISTENER_ENABLED,
@@ -105,6 +106,7 @@ from .const import (
     DEFAULT_SCAN_PORT_THRESHOLD,
     DEFAULT_SCAN_PORTS,
     DEFAULT_SCAN_WINDOW_SECONDS,
+    DEFAULT_SURICATA_ALLOW_UNAUTHENTICATED,
     DEFAULT_SURICATA_ALLOWED_SOURCES,
     DEFAULT_SURICATA_AUTH_TOKEN,
     DEFAULT_SURICATA_LISTENER_ENABLED,
@@ -328,6 +330,13 @@ class HomeSecCollector:
                 ),
                 allowed_networks=self._parse_networks_option(
                     entry, CONF_SURICATA_ALLOWED_SOURCES, DEFAULT_SURICATA_ALLOWED_SOURCES
+                ),
+                allow_unauthenticated=bool(
+                    get_entry_value(
+                        entry,
+                        CONF_SURICATA_ALLOW_UNAUTHENTICATED,
+                        DEFAULT_SURICATA_ALLOW_UNAUTHENTICATED,
+                    )
                 ),
             )
         else:
@@ -668,7 +677,9 @@ class HomeSecCollector:
         if self._suricata_listener is not None:
             stats = self._suricata_listener.stats()
             placeholders = {"host": str(stats["host"]), "port": str(stats["port"])}
-            if not stats["running"]:
+            if stats.get("blocked"):
+                wanted["suricata_blocked"] = (ir.IssueSeverity.ERROR, placeholders)
+            elif not stats["running"]:
                 wanted["suricata_not_running"] = (ir.IssueSeverity.ERROR, placeholders)
             elif not stats["auth_required"] and not stats.get("allowlist"):
                 wanted["suricata_unauthenticated"] = (ir.IssueSeverity.WARNING, placeholders)

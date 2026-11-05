@@ -399,6 +399,7 @@ async def test_repair_issues(hass: HomeAssistant, socket_enabled) -> None:
                 "suricata_listener_enabled": True,
                 "suricata_listener_host": "127.0.0.1",
                 "suricata_listener_port": port,  # already taken
+                "suricata_allow_unauthenticated": True,
             },
         )
         registry = ir.async_get(hass)
@@ -423,6 +424,7 @@ async def test_open_listeners_raise_warnings(hass: HomeAssistant, socket_enabled
             "suricata_listener_enabled": True,
             "suricata_listener_host": "127.0.0.1",
             "suricata_listener_port": _free_port(__import__("socket").SOCK_STREAM),
+            "suricata_allow_unauthenticated": True,
         },
     )
     registry = ir.async_get(hass)
@@ -436,6 +438,37 @@ async def test_open_listeners_raise_warnings(hass: HomeAssistant, socket_enabled
     await hass.async_block_till_done()
     await entry.runtime_data.coordinator.async_refresh()
     assert registry.async_get_issue(DOMAIN, "netflow_open_listener") is None
+
+
+async def test_suricata_listener_fails_closed(hass: HomeAssistant, socket_enabled) -> None:
+    import socket
+
+    from homeassistant.helpers import issue_registry as ir
+
+    port = _free_port(socket.SOCK_STREAM)
+    entry = await _setup(
+        hass,
+        {
+            "suricata_listener_enabled": True,
+            "suricata_listener_host": "127.0.0.1",
+            "suricata_listener_port": port,
+        },
+    )
+    registry = ir.async_get(hass)
+    collector = entry.runtime_data.collector
+    stats = collector.suricata_stats()
+    assert stats["running"] is False and stats["blocked"] is True
+    assert registry.async_get_issue(DOMAIN, "suricata_blocked") is not None
+    assert registry.async_get_issue(DOMAIN, "suricata_not_running") is None
+    with pytest.raises(OSError), socket.create_connection(("127.0.0.1", port), timeout=1):
+        pass
+
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "suricata_auth_token": "tok"}
+    )
+    await hass.async_block_till_done()
+    await entry.runtime_data.coordinator.async_refresh()
+    assert registry.async_get_issue(DOMAIN, "suricata_blocked") is None
 
 
 async def test_scanner_skips_own_addresses(hass: HomeAssistant) -> None:

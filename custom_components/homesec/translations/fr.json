@@ -116,6 +116,10 @@
       "title": "L'écouteur Suricata ne fonctionne pas",
       "description": "L'écouteur d'alertes Suricata n'a pas pu écouter sur {host}:{port}. Changez le port dans les paramètres de Security Assistant ou libérez-le."
     },
+    "suricata_blocked": {
+      "title": "Le listener Suricata n'a pas été démarré",
+      "description": "Le listener d'alertes Suricata ne s'est pas démarré sur {host}:{port} car aucun token d'authentification ni source de pusher autorisée n'est configuré. Définissez un token d'authentification et/ou des sources de pusher autorisées dans les paramètres de Security Assistant, ou activez explicitement 'Autoriser le listener sans authentification' si vous acceptez que tout host atteignant le port puisse envoyer des alertes."
+    },
     "suricata_unauthenticated": {
       "title": "L'écouteur Suricata accepte les alertes de n'importe qui",
       "description": "Tout appareil pouvant joindre {host}:{port} peut envoyer des alertes Suricata, qui peuvent déclencher vos automatisations. Définissez un jeton d'authentification et/ou les sources autorisées dans les paramètres de Security Assistant, puis lancez suricata_pusher.py avec le même jeton."

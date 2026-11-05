@@ -7,8 +7,10 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 import json
 import socket
+from types import SimpleNamespace
 
 from hypothesis import given, settings, strategies as st
+import pytest
 
 from custom_components.homesec.suricata import (
     SuricataAlertListener,
@@ -161,9 +163,93 @@ async def test_listener_source_allowlist(socket_enabled) -> None:
         await listener.async_stop()
 
 
+async def test_listener_fails_closed_without_credentials(socket_enabled) -> None:
+    """No token and no allowlist means the listener never binds."""
+    log: deque = deque(maxlen=100)
+    port = _free_port()
+    listener = SuricataAlertListener("127.0.0.1", port, log)
+    await listener.async_start()
+    try:
+        assert listener.blocked is True
+        assert listener.stats()["running"] is False
+        assert listener.stats()["blocked"] is True
+        with pytest.raises(OSError):
+            await asyncio.open_connection("127.0.0.1", port)
+    finally:
+        await listener.async_stop()
+
+
+async def test_listener_blocked_until_opt_in(socket_enabled) -> None:
+    """'Allow unauthenticated' is the only way to start a listener with no protection."""
+    log: deque = deque(maxlen=100)
+    port = _free_port()
+    listener = SuricataAlertListener("127.0.0.1", port, log)
+    await listener.async_start()
+    assert listener.blocked is True
+    await listener.async_stop()
+
+    listener._allow_unauthenticated = True
+    await listener.async_start()
+    try:
+        assert listener.blocked is False
+        assert listener.stats()["running"] is True
+        assert listener.stats()["allow_unauthenticated"] is True
+        await _send(port, [json.dumps(_alert())])
+        await _wait_for(lambda: len(log) == 1)
+        assert len(log) == 1
+    finally:
+        await listener.async_stop()
+
+
+async def test_allowlist_alone_starts_listener_without_token(socket_enabled) -> None:
+    """An allowed-sources list is enough protection to bind."""
+    log: deque = deque(maxlen=100)
+    port = _free_port()
+    listener = SuricataAlertListener(
+        "127.0.0.1", port, log, allowed_networks=parse_allowed_networks("127.0.0.1")
+    )
+    await listener.async_start()
+    try:
+        assert listener.blocked is False
+        assert listener.stats()["running"] is True
+        assert listener.stats()["auth_required"] is False
+        await _send(port, [json.dumps(_alert())])
+        await _wait_for(lambda: len(log) == 1)
+        assert len(log) == 1
+    finally:
+        await listener.async_stop()
+
+
+async def test_blocked_listener_rejects_connections(socket_enabled) -> None:
+    """A listener that was never started cannot be talked into accepting alerts."""
+    log: deque = deque(maxlen=100)
+    port = _free_port()
+    listener = SuricataAlertListener("127.0.0.1", port, log)
+    await listener.async_start()
+    assert listener.blocked is True
+    try:
+        # Drive the handler directly: the fail-closed check must reject the
+        # connection even if a server socket somehow existed.
+        reader = asyncio.StreamReader()
+        reader.feed_data(b"AUTH whatever\n" + json.dumps(_alert()).encode() + b"\n")
+        reader.feed_eof()
+        writer = SimpleNamespace(
+            get_extra_info=lambda key, default=None: ("127.0.0.1", 5555) if key == "peername" else default,
+            close=lambda: None,
+            wait_closed=lambda: asyncio.sleep(0),
+        )
+        await listener._handle_connection(reader, writer)
+        assert len(log) == 0
+        assert listener.stats()["rejected_connections"] >= 1
+    finally:
+        await listener.async_stop()
+
+
 async def test_listener_stores_sanitized_records(socket_enabled) -> None:
     received: list[dict] = []
-    listener, log, port = await _run_listener(socket_enabled, on_alert=received.append)
+    listener, log, port = await _run_listener(
+        socket_enabled, on_alert=received.append, allow_unauthenticated=True
+    )
     try:
         await _send(
             port,

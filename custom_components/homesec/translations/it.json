@@ -116,6 +116,10 @@
       "title": "Il ricevitore Suricata non è in esecuzione",
       "description": "Il ricevitore di avvisi Suricata non ha potuto mettersi in ascolto su {host}:{port}. Cambia la porta nelle impostazioni di Security Assistant o liberala."
     },
+    "suricata_blocked": {
+      "title": "Il listener Suricata non è stato avviato",
+      "description": "Il listener degli alert Suricata non è stato avviato su {host}:{port} perché non è configurato né un token di autenticazione né sorgenti pusher consentite. Imposta un token di autenticazione e/o sorgenti pusher consentite nelle impostazioni di Security Assistant, oppure attiva esplicitamente 'Consenti listener senza autenticazione' se accetti che qualsiasi host che raggiunge la porta possa inviare alert."
+    },
     "suricata_unauthenticated": {
       "title": "Il ricevitore Suricata accetta avvisi da chiunque",
       "description": "Qualsiasi dispositivo che raggiunge {host}:{port} può inviare avvisi Suricata, che possono attivare le tue automazioni. Imposta un token di autenticazione e/o le sorgenti consentite nelle impostazioni di Security Assistant e avvia suricata_pusher.py con lo stesso token."
