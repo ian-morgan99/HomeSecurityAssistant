@@ -108,7 +108,12 @@ Security Assistant is a custom Home Assistant integration that provides real-tim
 - **Suricata EVE alert listener** — Home Security Assistant can receive Suricata alert events over TCP and ingest them into the sidebar dashboard and alert log.
 - **Companion pusher script** — the included `suricata_pusher.py` script tails Suricata's EVE JSON alert file and streams each alert line to the listener.
 - **Alert visibility** — Suricata alerts are shown in the sidebar dashboard and are persisted with the other runtime logs so they survive restarts.
-- **Securing the listener** — anyone who can reach the listener port can submit alerts, so set an **auth token** and/or **allowed pusher sources** in *Settings → Suricata Alert Listener*. Then start the pusher with the same token (the environment variable keeps it out of `ps` output):
+- **Securing the listener** — anyone who can reach the listener port can submit
+  alerts, so set an **auth token** and/or **allowed pusher sources** in *Settings
+  → Suricata Alert Listener*. The listener **fails closed**: if neither is
+  configured it refuses to start and raises a repair issue instead of accepting
+  anonymous alerts. Then start the pusher with the same token (the environment
+  variable keeps it out of `ps` output):
 
   ```sh
   HSA_SURICATA_TOKEN='your-token' python3 suricata_pusher.py --ha-host 192.168.1.10 --ha-port 6343
@@ -319,8 +324,9 @@ Device tracker enrichment is automatic — if you have router or presence integr
 | DNS blocked categories | _(empty)_ | Comma-separated feed categories to block (e.g. `malware,phishing,ads`) |
 | DNS overrides | _(empty)_ | Static `domain=ip` override rules (one per line or comma-separated) |
 | DNS log retention | `24` h | Hours to keep DNS query log entries (0 = keep up to the 10,000-entry cap) |
-| Suricata listener auth token | _(empty)_ | Shared secret the pusher must send before any alert (`--token` / `HSA_SURICATA_TOKEN`) |
+| Suricata listener auth token | _(empty)_ | Shared secret the pusher must send before any alert (`--token` / `HSA_SURICATA_TOKEN`). Required unless allowed sources are set or unauthenticated access is enabled |
 | Allowed pusher sources | _(empty)_ | Comma-separated IPs/CIDRs allowed to connect to the Suricata listener |
+| Allow unauthenticated listener | `false` | Insecure opt-in. Off by default: with no auth token and no allowed sources the Suricata listener does not start at all (fail closed) and raises a repair issue |
 
 The listener address and internal networks can be changed via **Configure** on the integration card; everything else is in the panel's **Settings** page (admin only). Values are validated before they are saved. Network listener and retention changes apply immediately; other changes reload the integration automatically.
 

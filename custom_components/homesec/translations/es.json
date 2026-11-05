@@ -116,6 +116,10 @@
       "title": "El receptor de Suricata no está funcionando",
       "description": "El receptor de alertas de Suricata no pudo escuchar en {host}:{port}. Cambie el puerto en los ajustes de Security Assistant o libérelo."
     },
+    "suricata_blocked": {
+      "title": "El listener de Suricata no se inició",
+      "description": "El listener de alertas de Suricata no se inició en {host}:{port} porque no hay configurado ningún token de autenticación ni fuentes de pusher permitidas. Establezca un token de autenticación y/o fuentes de pusher permitidas en los ajustes de Security Assistant, o active explícitamente 'Permitir listener sin autenticación' si acepta que cualquier host que alcance el puerto pueda enviar alertas."
+    },
     "suricata_unauthenticated": {
       "title": "El receptor de Suricata acepta alertas de cualquiera",
       "description": "Cualquier dispositivo que alcance {host}:{port} puede enviar alertas de Suricata, que pueden activar sus automatizaciones. Defina un token de autenticación y/o los orígenes permitidos en los ajustes de Security Assistant e inicie suricata_pusher.py con el mismo token."

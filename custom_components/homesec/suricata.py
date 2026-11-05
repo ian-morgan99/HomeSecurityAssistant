@@ -15,6 +15,10 @@ Optional hardening (configured from the Settings page):
   ``AUTH <token>``; the connection is closed otherwise.
 * ``allowed_networks`` — when non-empty, connections from any other source
   address are closed immediately.
+
+The listener fails closed: with neither an auth token nor an allowed-sources
+list configured it refuses to bind (and refuses connections) unless the user
+explicitly opts in via ``allow_unauthenticated``.
 """
 
 from __future__ import annotations
@@ -182,6 +186,7 @@ class SuricataAlertListener:
         on_alert: Callable[[dict], None] | None = None,
         auth_token: str | None = None,
         allowed_networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] | None = None,
+        allow_unauthenticated: bool = False,
     ) -> None:
         self._host = host
         self._port = port
@@ -189,6 +194,8 @@ class SuricataAlertListener:
         self._on_alert = on_alert
         self._auth_token = (auth_token or "").strip()
         self._allowed_networks = list(allowed_networks or [])
+        self._allow_unauthenticated = bool(allow_unauthenticated)
+        self.blocked = False
         self._server: asyncio.AbstractServer | None = None
         self._total_received: int = 0
         self._rejected_connections: int = 0
@@ -197,7 +204,25 @@ class SuricataAlertListener:
         self._exporter_ips: list[str] = []
 
     async def async_start(self) -> None:
-        """Bind the TCP server and start accepting connections."""
+        """Bind the TCP server and start accepting connections.
+
+        Fails closed: with neither an auth token nor an allowed-sources list
+        configured the listener does not bind at all, unless the user opted in
+        to ``allow_unauthenticated``.  In that case ``blocked`` is set so the
+        integration can surface a repair issue.
+        """
+        if not self._auth_token and not self._allowed_networks and not self._allow_unauthenticated:
+            self.blocked = True
+            _LOGGER.error(
+                "HomeSec Suricata alert listener NOT started on %s:%d: no auth "
+                "token and no allowed-sources list are configured. Set an auth "
+                "token or an allowed-sources list in the Suricata settings, or "
+                "enable 'Allow Unauthenticated Listener' if you accept the risk.",
+                self._host,
+                self._port,
+            )
+            return
+        self.blocked = False
         self._server = await asyncio.start_server(
             self._handle_connection,
             self._host,
@@ -212,9 +237,10 @@ class SuricataAlertListener:
         )
         if not self._auth_token and not self._allowed_networks:
             _LOGGER.warning(
-                "HomeSec Suricata listener accepts alerts from any host without "
-                "authentication. Set an auth token or an allowed-sources list in "
-                "the Suricata settings."
+                "HomeSec Suricata listener accepts alerts from any host: "
+                "unauthenticated access was explicitly enabled. Set an auth "
+                "token or an allowed-sources list in the Suricata settings as "
+                "soon as possible."
             )
 
     async def async_stop(self) -> None:
@@ -238,7 +264,9 @@ class SuricataAlertListener:
 
     async def _authenticate(self, reader: asyncio.StreamReader) -> bool:
         if not self._auth_token:
-            return True
+            # Fail closed: without a token, only accept the connection when the
+            # source allowlist is enforced or unauthenticated use was opted in.
+            return self._allow_unauthenticated or bool(self._allowed_networks)
         try:
             line = await asyncio.wait_for(reader.readline(), timeout=_AUTH_TIMEOUT_SECONDS)
         except (TimeoutError, ValueError, asyncio.LimitOverrunError):
@@ -325,6 +353,7 @@ class SuricataAlertListener:
         """Return runtime statistics for the listener."""
         return {
             "running": self._server is not None,
+            "blocked": self.blocked,
             "host": self._host,
             "port": self._port,
             "total_received": self._total_received,
@@ -332,6 +361,7 @@ class SuricataAlertListener:
             "active_connections": self._active_connections,
             "auth_required": bool(self._auth_token),
             "allowlist": bool(self._allowed_networks),
+            "allow_unauthenticated": self._allow_unauthenticated,
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "exporter_ips": list(self._exporter_ips),
         }

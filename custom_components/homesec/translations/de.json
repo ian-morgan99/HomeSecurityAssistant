@@ -116,6 +116,10 @@
       "title": "Suricata-Listener läuft nicht",
       "description": "Der Suricata-Listener konnte nicht auf {host}:{port} lauschen. Ändern Sie den Port in den Security-Assistant-Einstellungen oder geben Sie ihn frei."
     },
+    "suricata_blocked": {
+      "title": "Suricata-Listener wurde nicht gestartet",
+      "description": "Der Suricata-Alert-Listener wurde auf {host}:{port} nicht gestartet, da weder ein Auth-Token noch erlaubte Pusher-Quellen konfiguriert sind. Setzen Sie in den Security-Assistant-Einstellungen ein Auth-Token und/oder erlaubte Pusher-Quellen, oder aktivieren Sie explizit 'Unauthentifizierten Listener erlauben', wenn Sie akzeptieren, dass jeder Host, der den Port erreicht, Alerts senden kann."
+    },
     "suricata_unauthenticated": {
       "title": "Suricata-Listener nimmt Warnungen von jedem an",
       "description": "Jedes Gerät, das {host}:{port} erreicht, kann Suricata-Warnungen senden und damit Automatisierungen auslösen. Setzen Sie ein Auth-Token und/oder erlaubte Quellen in den Security-Assistant-Einstellungen und starten Sie suricata_pusher.py mit demselben Token."
