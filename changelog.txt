@@ -13,8 +13,9 @@ Suricata alert listener
   Suricata Alert Listener, off by default. Turn it on only if you accept that
   any host reaching the port can submit alerts; while it is on the listener
   still warns about it in the log and as a repair issue.
-- An allowed-sources list alone is enough to start the listener: a token is no
-  longer mandatory, just either one of them (or the opt-in).
+- Either protection is enough on its own: an allowed-sources list starts the
+  listener without a token, and a token starts it without an allowed-sources
+  list.
 - Existing installs that enabled the listener without credentials stop
   receiving Suricata alerts until they set a token or allowed sources, or
   enable the new option. Nothing else in the integration is affected.
