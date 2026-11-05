@@ -1,5 +1,24 @@
 Security Assistant - Changelog
 
+0.16.2
+
+Suricata alert listener
+- The listener no longer starts when it has nothing to authenticate with.
+  Without an auth token and without allowed pusher sources it used to bind
+  anyway and accept alerts from any host that could reach the port, so anyone
+  on the network could invent severity-1 alerts and trigger your automations.
+  It now logs an error, leaves the port closed and raises a repair issue
+  ("Suricata listener was not started") telling you what to set.
+- New setting "Allow Unauthenticated Listener (insecure)" in Settings ->
+  Suricata Alert Listener, off by default. Turn it on only if you accept that
+  any host reaching the port can submit alerts; while it is on the listener
+  still warns about it in the log and as a repair issue.
+- An allowed-sources list alone is enough to start the listener: a token is no
+  longer mandatory, just either one of them (or the opt-in).
+- Existing installs that enabled the listener without credentials stop
+  receiving Suricata alerts until they set a token or allowed sources, or
+  enable the new option. Nothing else in the integration is affected.
+
 0.16.1
 
 Vulnerability intelligence (NVD)
